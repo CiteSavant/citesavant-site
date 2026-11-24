@@ -11,7 +11,11 @@
 //   2. a page links anywhere except the site's own files, https://app.citesavant.com
 //      and the feedback address (mailto:monairig@proton.me);
 //   3. a font file is missing, added, or its fingerprint (SHA-256) changed;
-//   4. vercel.json differs from the reviewed settings below.
+//   4. vercel.json differs from the reviewed settings below;
+//   5. the top of the repository holds anything but README.md, public/, scripts/,
+//      vercel.json and .gitignore (so no api/ folder, package.json or other
+//      server or build code);
+//   6. public/ holds anything but the site's pages, site.css, the logo and fonts/.
 //
 // To change the fonts or vercel.json on purpose, change them here in the same commit.
 import fs from 'node:fs';
@@ -31,10 +35,36 @@ const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 const rel = f => path.relative(site, f).split(path.sep).join('/');
 
-if (!fs.existsSync(site)) {
+if (!fs.existsSync(site) || !fs.lstatSync(site).isDirectory()) {
   console.error(`Deploy check failed: there is no public/ folder in ${root}.`);
   process.exit(1);
 }
+
+// ---- 5. Only the expected items at the top of the repository -------------------
+// Anything else (an api/ folder, middleware, a package.json and the like) could
+// make Vercel run server code or a build of its own.
+// .git is git's own folder. Vercel's build tool creates .vercel itself just
+// before running this check; it is only refused if it already holds an output
+// folder (pre-built files Vercel would serve instead of public/).
+const TOP_LEVEL = new Set(['README.md', 'public', 'scripts', 'vercel.json', '.gitignore', '.git']);
+for (const name of fs.readdirSync(root)) {
+  if (name === '.vercel') {
+    if (fs.existsSync(path.join(root, '.vercel', 'output'))) problems.push('.vercel/output exists before the build: pre-built output must never be in the repository.');
+    continue;
+  }
+  if (!TOP_LEVEL.has(name)) problems.push(`Unexpected item at the top of the repository: ${name}. Only README.md, public/, scripts/, vercel.json and .gitignore belong there.`);
+}
+
+// ---- 6. Only the site itself in public/ ------------------------------------------
+// The pages (each one checked below), the stylesheet, the logo and the fonts
+// folder (whose contents are checked file by file in rule 3).
+const PUBLIC_TOP = new Set(['site.css', 'citesavant-wordmark-dark.svg', 'fonts']);
+for (const e of fs.readdirSync(site, { withFileTypes: true })) {
+  const isPage = e.isFile() && /^[a-z0-9-]+\.html$/.test(e.name);
+  const isKnown = PUBLIC_TOP.has(e.name) && (e.name === 'fonts' ? e.isDirectory() : e.isFile());
+  if (!isPage && !isKnown) problems.push(`Unexpected item in public/: ${e.name}. Everything in public/ is published; only the pages, site.css, the logo and fonts/ belong there.`);
+}
+
 const files = walk(site).sort();
 
 // ---- 3. Fonts ------------------------------------------------------------------
@@ -58,7 +88,7 @@ for (const f of files) {
   const r = rel(f);
   const isFontDir = r.startsWith('fonts/');
   const isFontFile = /\.(woff2?|ttf|otf|eot)$/i.test(r);
-  if ((isFontDir || isFontFile) && !(r in FONTS)) problems.push(`Unexpected font file: public/${r}. Only the recorded IBM Plex Sans files may be published.`);
+  if ((isFontDir || isFontFile) && !(r in FONTS)) problems.push(`Unexpected ${isFontDir ? 'file in public/fonts/' : 'font file'}: public/${r}. Only the recorded IBM Plex Sans files and their licence may be published.`);
 }
 
 // ---- 4. vercel.json --------------------------------------------------------------
@@ -185,4 +215,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; ${Object.keys(FONTS).length} font files match their fingerprints; vercel.json matches the reviewed settings.`);
+console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; ${Object.keys(FONTS).length} font files match their fingerprints; vercel.json matches the reviewed settings; nothing unexpected in the repository or in public/.`);

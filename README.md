@@ -54,7 +54,12 @@ deployment stops, and the live site stays as it was, if:
 - a page links anywhere except the site’s own pages, https://app.citesavant.com
   and the feedback address (mailto:monairig@proton.me);
 - a font file is missing, added or changed (its fingerprint differs);
-- `vercel.json` differs from the reviewed settings.
+- `vercel.json` differs from the reviewed settings;
+- the top of the repository holds anything but `README.md`, `public/`,
+  `scripts/`, `vercel.json` and `.gitignore` (so no `api/` folder,
+  `package.json` or other server or build code);
+- `public/` holds anything but the site’s pages, `site.css`, the logo and
+  `fonts/`.
 
 To run it yourself: `node scripts/check-site.mjs` (needs only Node). To change
 the fonts or `vercel.json` on purpose, update the check in the same commit.
