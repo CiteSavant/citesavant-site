@@ -9,7 +9,7 @@
 // It stops a deployment if:
 //   1. a page holds a script, an inline style or an inline event handler;
 //   2. a page links anywhere except the site's own files, https://app.citesavant.com
-//      and the feedback address (mailto:monairig@proton.me);
+//      and the feedback address (mailto:citesavant_admin@proton.me);
 //   3. a font file is missing, added, or its fingerprint (SHA-256) changed;
 //   4. vercel.json differs from the reviewed settings below;
 //   5. the top of the repository holds anything but README.md, public/, scripts/,
@@ -159,7 +159,7 @@ const decode = s => s
   .replace(/&colon;/gi, ':').replace(/&sol;/gi, '/').replace(/&tab;/gi, '\t').replace(/&newline;/gi, '\n')
   .replace(/&amp;/gi, '&');
 
-const FEEDBACK = 'mailto:monairig@proton.me';
+const FEEDBACK = 'mailto:citesavant_admin@proton.me';
 const APP_HOST = 'app.citesavant.com';
 // Attributes that load or link to something.
 const LINK_ATTRS = new Set(['href', 'src', 'srcset', 'action', 'formaction', 'poster', 'data', 'xlink:href', 'cite', 'background', 'ping', 'manifest', 'codebase', 'longdesc', 'imagesrcset']);

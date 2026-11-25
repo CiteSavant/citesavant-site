@@ -52,7 +52,7 @@ deployment stops, and the live site stays as it was, if:
 
 - a page holds a script, an inline style or an inline event handler;
 - a page links anywhere except the site’s own pages, https://app.citesavant.com
-  and the feedback address (mailto:monairig@proton.me);
+  and the feedback address (mailto:citesavant_admin@proton.me);
 - a font file is missing, added or changed (its fingerprint differs);
 - `vercel.json` differs from the reviewed settings;
 - the top of the repository holds anything but `README.md`, `public/`,
