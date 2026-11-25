@@ -142,6 +142,7 @@ h3{font-size:1.25rem;line-height:1.35;margin-bottom:.375rem}
 .part-head.flip > :first-child{order:2}
 .part-head .bigname{font-size:4rem;line-height:1;letter-spacing:-.035em;margin-bottom:1.25rem}
 .part-head .what{font-size:1.5rem;line-height:1.45;margin-bottom:2.25rem}
+.part-head .what + .what{margin-top:-1.5rem}
 .why{border-left:3px solid var(--primary);padding-left:1.5rem}
 .why .k{font-size:.9375rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.625rem}
 .why p + p{margin-top:.875rem}
@@ -277,6 +278,7 @@ h3{font-size:1.25rem;line-height:1.35;margin-bottom:.375rem}
   .part-head.flip > :first-child{order:0}
   .part-head .bigname{font-size:3rem}
   .part-head .what{font-size:1.25rem;margin-bottom:1.75rem}
+  .part-head .what + .what{margin-top:-1rem}
   .tiles{margin-top:2.5rem;grid-template-columns:1fr}
   .extra{margin-top:3.5rem}
   .lib{grid-template-columns:1fr}
@@ -357,3 +359,12 @@ h3{font-size:1.25rem;line-height:1.35;margin-bottom:.375rem}
 .chart i.h70{height:70%}
 .chart i.h90{height:90%}
 .eyebrow.after-title{margin-top:.5rem}
+
+/* Page not found (404.html) */
+.lost{padding:7rem 0 8rem;text-align:center}
+.lost h1{font-size:4rem;line-height:1.05;letter-spacing:-.035em;margin-bottom:1.5rem}
+.lost .home{display:inline-flex;align-items:center;min-height:var(--target);font-size:1.25rem;margin-bottom:2rem}
+@media (max-width: 800px){
+  .lost{padding:4.5rem 0 5.5rem}
+  .lost h1{font-size:2.5rem}
+}

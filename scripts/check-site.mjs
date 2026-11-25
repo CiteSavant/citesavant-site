@@ -10,16 +10,20 @@
 //   1. a page holds a script, an inline style or an inline event handler;
 //   2. a page links anywhere except the site's own files, https://app.citesavant.com
 //      and the feedback address (mailto:citesavant_admin@proton.me);
+//   2b. a page names the site's own address, https://www.citesavant.com/, anywhere
+//      but its two link-preview address tags (og:url, which must be the page's own
+//      address, and og:image, which must be a file of the site), or names any
+//      other address in a <meta> tag;
 //   3. a font file is missing, added, or its fingerprint (SHA-256) changed;
-//   3b. a tab icon in public/img/ is missing, changed (its fingerprint differs),
-//      or public/img/ holds anything else;
+//   3b. a tab icon or the link-preview picture in public/img/ is missing or
+//      changed (its fingerprint differs), or public/img/ holds anything else;
 //   4. vercel.json differs from the reviewed settings below;
 //   5. the top of the repository holds anything but README.md, public/, scripts/,
 //      vercel.json and .gitignore (so no api/ folder, package.json or other
 //      server or build code);
 //   6. public/ holds anything but the site's pages, site.css, the logo, fonts/ and img/.
 //
-// To change the fonts, the tab icons or vercel.json on purpose, change them here
+// To change the fonts, the tab icons, the preview picture or vercel.json on purpose, change them here
 // in the same commit.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -96,25 +100,31 @@ for (const f of files) {
   if ((isFontDir || isFontFile) && !(r in FONTS)) problems.push(`Unexpected ${isFontDir ? 'file in public/fonts/' : 'font file'}: public/${r}. Only the recorded IBM Plex Sans files and their licence may be published.`);
 }
 
-// ---- 3b. Tab icons ------------------------------------------------------------------
+// ---- 3b. Tab icons and the link-preview picture ---------------------------------------
 // The app's own tab icons, copied unchanged from public/img/ in
-// Ianoneil/Document-Digester (branch app, commit bbaa00c). public/img/ may hold
-// these three files and nothing else.
+// Ianoneil/Document-Digester (branch app, commit bbaa00c), and the link-preview
+// picture (1200x630: the logo citesavant-wordmark-dark.svg, unchanged, centred on
+// the top bar's #0F1A14). public/img/ may hold these four files and nothing else.
 const ICONS = {
   'img/logo.svg':         '9a9529869db5f89f1605fc2b44db5be17b96b0a3f161a97fddeb314cc0e6da41',
   'img/app-icon-32.png':  '2c7eec3ef43f4002a5b8408b28324c528abf203a638d18c92b15d13fb5916b86',
   'img/app-icon-180.png': '39bf583925e9693b7b9815028d5e7bcd24a30489b088c77dfa2f201f7e479174',
 };
-for (const [name, want] of Object.entries(ICONS)) {
+const PREVIEW = {
+  'img/preview.png':      'af1cbc08e705140096d0c9b39693c02d70b951fc3de73f3bb6d1b97e78ad9f79',
+};
+const IMAGES = { ...ICONS, ...PREVIEW };
+for (const [name, want] of Object.entries(IMAGES)) {
+  const what = name in PREVIEW ? 'Link-preview picture' : 'Tab icon';
   const f = path.join(site, name);
-  if (!fs.existsSync(f) || !fs.lstatSync(f).isFile()) { problems.push(`Tab icon missing: public/${name}.`); continue; }
+  if (!fs.existsSync(f) || !fs.lstatSync(f).isFile()) { problems.push(`${what} missing: public/${name}.`); continue; }
   const got = sha256(fs.readFileSync(f));
-  if (got !== want) problems.push(`Tab icon changed: public/${name} (fingerprint ${got}, expected ${want}).`);
+  if (got !== want) problems.push(`${what} changed: public/${name} (fingerprint ${got}, expected ${want}).`);
 }
 const imgDir = path.join(site, 'img');
 if (fs.existsSync(imgDir) && fs.lstatSync(imgDir).isDirectory()) {
   for (const e of fs.readdirSync(imgDir, { withFileTypes: true })) {
-    if (!(e.isFile() && `img/${e.name}` in ICONS)) problems.push(`Unexpected item in public/img/: ${e.name}. Only the recorded tab icons (logo.svg, app-icon-32.png, app-icon-180.png) may be published there.`);
+    if (!(e.isFile() && `img/${e.name}` in IMAGES)) problems.push(`Unexpected item in public/img/: ${e.name}. Only the recorded tab icons (logo.svg, app-icon-32.png, app-icon-180.png) and the link-preview picture (preview.png) may be published there.`);
   }
 }
 
@@ -188,6 +198,30 @@ const decode = s => s
 
 const FEEDBACK = 'mailto:citesavant_admin@proton.me';
 const APP_HOST = 'app.citesavant.com';
+// The site's own address, allowed only in the two link-preview address tags.
+const SITE_HOST = 'www.citesavant.com';
+const SITE_ADDRESS = `https://${SITE_HOST}/`;
+const PREVIEW_ADDRESS_TAGS = new Set(['og:url', 'og:image']);
+const pageAddress = page => rel(page) === 'index.html' ? SITE_ADDRESS : SITE_ADDRESS + rel(page);
+
+// What is wrong with the address in a preview tag, or null if it is allowed.
+function previewProblem(key, raw, page) {
+  const value = decode(raw).trim();
+  if (!value.startsWith(SITE_ADDRESS)) return `must start with ${SITE_ADDRESS}`;
+  let u;
+  try { u = new URL(value); } catch { return 'is not a valid address'; }
+  if (u.protocol !== 'https:' || u.hostname !== SITE_HOST || u.port || u.username || u.password) return `must be on ${SITE_ADDRESS}`;
+  if (u.search || u.hash || value.includes('?') || value.includes('#')) return 'carries a query or a fragment, which this site never needs';
+  if (u.href !== value) return 'is not written plainly';
+  const target = u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1));
+  const file = path.join(site, target);
+  const inside = path.relative(site, file);
+  if (inside.startsWith('..') || path.isAbsolute(inside)) return 'points outside the site folder';
+  if (!fs.existsSync(file) || !fs.lstatSync(file).isFile()) return 'points to a file that does not exist';
+  if (key === 'og:url' && value !== pageAddress(page)) return `must be the page's own address, ${pageAddress(page)}`;
+  if (key === 'og:image' && !(rel(file) in PREVIEW)) return 'must be the recorded link-preview picture';
+  return null;
+}
 // Attributes that load or link to something.
 const LINK_ATTRS = new Set(['href', 'src', 'srcset', 'action', 'formaction', 'poster', 'data', 'xlink:href', 'cite', 'background', 'ping', 'manifest', 'codebase', 'longdesc', 'imagesrcset']);
 
@@ -223,6 +257,17 @@ for (const page of pages) {
     if (tag.name === 'script') problems.push(`${where}: holds a <script> element.`);
     if (tag.name === 'style') problems.push(`${where}: holds an inline <style> element.`);
     if (tag.name === 'meta' && tag.attrs.some(a => a.name === 'http-equiv' && /refresh/i.test(a.value))) problems.push(`${where}: has a <meta http-equiv="refresh">, which can send readers elsewhere.`);
+    if (tag.name === 'meta') {
+      const key = decode((tag.attrs.find(a => a.name === 'property') || tag.attrs.find(a => a.name === 'name') || { value: '' }).value).trim().toLowerCase();
+      for (const a of tag.attrs.filter(a => a.name === 'content')) {
+        if (PREVIEW_ADDRESS_TAGS.has(key)) {
+          const why = previewProblem(key, a.value, page);
+          if (why) problems.push(`${where}: <meta ${key} content="${a.value}"> ${why}.`);
+        } else if (/:\s*\/\/|^\s*\/\/|\\\\|www\.|citesavant\.com/i.test(decode(a.value))) {
+          problems.push(`${where}: <meta${key ? ' ' + key : ''} content="${a.value}"> names an address. Only og:url and og:image may, and only ${SITE_ADDRESS}.`);
+        }
+      }
+    }
     for (const a of tag.attrs) {
       if (a.name === 'style') problems.push(`${where}: <${tag.name}> has an inline style attribute.`);
       if (a.name.startsWith('on')) problems.push(`${where}: <${tag.name}> has an inline event handler (${a.name}).`);
@@ -242,4 +287,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; ${Object.keys(FONTS).length} font files and ${Object.keys(ICONS).length} tab icons match their fingerprints; vercel.json matches the reviewed settings; nothing unexpected in the repository or in public/.`);
+console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; the site's own address only in the preview tags; ${Object.keys(FONTS).length} font files, ${Object.keys(ICONS).length} tab icons and the preview picture match their fingerprints; vercel.json matches the reviewed settings; nothing unexpected in the repository or in public/.`);
