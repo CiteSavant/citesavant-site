@@ -11,13 +11,16 @@
 //   2. a page links anywhere except the site's own files, https://app.citesavant.com
 //      and the feedback address (mailto:citesavant_admin@proton.me);
 //   3. a font file is missing, added, or its fingerprint (SHA-256) changed;
+//   3b. a tab icon in public/img/ is missing, changed (its fingerprint differs),
+//      or public/img/ holds anything else;
 //   4. vercel.json differs from the reviewed settings below;
 //   5. the top of the repository holds anything but README.md, public/, scripts/,
 //      vercel.json and .gitignore (so no api/ folder, package.json or other
 //      server or build code);
-//   6. public/ holds anything but the site's pages, site.css, the logo and fonts/.
+//   6. public/ holds anything but the site's pages, site.css, the logo, fonts/ and img/.
 //
-// To change the fonts or vercel.json on purpose, change them here in the same commit.
+// To change the fonts, the tab icons or vercel.json on purpose, change them here
+// in the same commit.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -56,13 +59,15 @@ for (const name of fs.readdirSync(root)) {
 }
 
 // ---- 6. Only the site itself in public/ ------------------------------------------
-// The pages (each one checked below), the stylesheet, the logo and the fonts
-// folder (whose contents are checked file by file in rule 3).
-const PUBLIC_TOP = new Set(['site.css', 'citesavant-wordmark-dark.svg', 'fonts']);
+// The pages (each one checked below), the stylesheet, the logo, the fonts
+// folder (whose contents are checked file by file in rule 3) and the tab-icon
+// folder (checked file by file in rule 3b).
+const PUBLIC_TOP = new Set(['site.css', 'citesavant-wordmark-dark.svg', 'fonts', 'img']);
+const PUBLIC_DIRS = new Set(['fonts', 'img']);
 for (const e of fs.readdirSync(site, { withFileTypes: true })) {
   const isPage = e.isFile() && /^[a-z0-9-]+\.html$/.test(e.name);
-  const isKnown = PUBLIC_TOP.has(e.name) && (e.name === 'fonts' ? e.isDirectory() : e.isFile());
-  if (!isPage && !isKnown) problems.push(`Unexpected item in public/: ${e.name}. Everything in public/ is published; only the pages, site.css, the logo and fonts/ belong there.`);
+  const isKnown = PUBLIC_TOP.has(e.name) && (PUBLIC_DIRS.has(e.name) ? e.isDirectory() : e.isFile());
+  if (!isPage && !isKnown) problems.push(`Unexpected item in public/: ${e.name}. Everything in public/ is published; only the pages, site.css, the logo, fonts/ and img/ belong there.`);
 }
 
 const files = walk(site).sort();
@@ -89,6 +94,28 @@ for (const f of files) {
   const isFontDir = r.startsWith('fonts/');
   const isFontFile = /\.(woff2?|ttf|otf|eot)$/i.test(r);
   if ((isFontDir || isFontFile) && !(r in FONTS)) problems.push(`Unexpected ${isFontDir ? 'file in public/fonts/' : 'font file'}: public/${r}. Only the recorded IBM Plex Sans files and their licence may be published.`);
+}
+
+// ---- 3b. Tab icons ------------------------------------------------------------------
+// The app's own tab icons, copied unchanged from public/img/ in
+// Ianoneil/Document-Digester (branch app, commit bbaa00c). public/img/ may hold
+// these three files and nothing else.
+const ICONS = {
+  'img/logo.svg':         '9a9529869db5f89f1605fc2b44db5be17b96b0a3f161a97fddeb314cc0e6da41',
+  'img/app-icon-32.png':  '2c7eec3ef43f4002a5b8408b28324c528abf203a638d18c92b15d13fb5916b86',
+  'img/app-icon-180.png': '39bf583925e9693b7b9815028d5e7bcd24a30489b088c77dfa2f201f7e479174',
+};
+for (const [name, want] of Object.entries(ICONS)) {
+  const f = path.join(site, name);
+  if (!fs.existsSync(f) || !fs.lstatSync(f).isFile()) { problems.push(`Tab icon missing: public/${name}.`); continue; }
+  const got = sha256(fs.readFileSync(f));
+  if (got !== want) problems.push(`Tab icon changed: public/${name} (fingerprint ${got}, expected ${want}).`);
+}
+const imgDir = path.join(site, 'img');
+if (fs.existsSync(imgDir) && fs.lstatSync(imgDir).isDirectory()) {
+  for (const e of fs.readdirSync(imgDir, { withFileTypes: true })) {
+    if (!(e.isFile() && `img/${e.name}` in ICONS)) problems.push(`Unexpected item in public/img/: ${e.name}. Only the recorded tab icons (logo.svg, app-icon-32.png, app-icon-180.png) may be published there.`);
+  }
 }
 
 // ---- 4. vercel.json --------------------------------------------------------------
@@ -215,4 +242,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; ${Object.keys(FONTS).length} font files match their fingerprints; vercel.json matches the reviewed settings; nothing unexpected in the repository or in public/.`);
+console.log(`Deploy check passed: ${pages.length} pages, no scripts, inline styles or event handlers; links only to the site, the app and the feedback address; ${Object.keys(FONTS).length} font files and ${Object.keys(ICONS).length} tab icons match their fingerprints; vercel.json matches the reviewed settings; nothing unexpected in the repository or in public/.`);

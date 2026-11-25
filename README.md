@@ -12,7 +12,7 @@ they are.
 ## It collects nothing
 
 The site has no scripts, analytics, cookies, forms, accounts or third-party
-code. Its fonts, styles and logo are served from the site itself, and its
+code. Its fonts, styles, logo and tab icons are served from the site itself, and its
 security policy (in `vercel.json`) lets the browser load nothing from anywhere
 else. Search engines may list it.
 
@@ -27,6 +27,7 @@ does. The site adds nothing to them.
 | `public/site.css` | All styling (the security policy allows no styles inside the pages) |
 | `public/citesavant-wordmark-dark.svg` | The logo |
 | `public/fonts/` | IBM Plex Sans and its licence (below) |
+| `public/img/` | The browser-tab icons (below) |
 | `vercel.json` | Vercel settings: the security headers, and the deploy check as the build step |
 | `scripts/check-site.mjs` | The deploy check |
 
@@ -45,6 +46,19 @@ the same files the CiteSavant app ships, copied unchanged from
 | `IBMPlexSans-Italic.woff2` | `13284fab1821ba6e3652c1580fcf2bbfd8c9309520c69b3d1224dab40b37c597` |
 | `LICENSE.txt` | `7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da` |
 
+## Tab icons
+
+The app’s own tab icons, copied unchanged from `public/img/` in
+Ianoneil/Document-Digester (branch `app`, commit `bbaa00c`). Every page links
+them in its head exactly as the app does. `public/img/` holds these three files
+and nothing else. Their SHA-256 fingerprints:
+
+| File | What it is | SHA-256 |
+| --- | --- | --- |
+| `logo.svg` | The icon, drawn to any size | `9a9529869db5f89f1605fc2b44db5be17b96b0a3f161a97fddeb314cc0e6da41` |
+| `app-icon-32.png` | The tab icon, 32×32 | `2c7eec3ef43f4002a5b8408b28324c528abf203a638d18c92b15d13fb5916b86` |
+| `app-icon-180.png` | The home-screen icon on iPhone and iPad, 180×180 | `39bf583925e9693b7b9815028d5e7bcd24a30489b088c77dfa2f201f7e479174` |
+
 ## The deploy check
 
 Vercel runs `node scripts/check-site.mjs` before every deployment. The
@@ -54,12 +68,14 @@ deployment stops, and the live site stays as it was, if:
 - a page links anywhere except the site’s own pages, https://app.citesavant.com
   and the feedback address (mailto:citesavant_admin@proton.me);
 - a font file is missing, added or changed (its fingerprint differs);
+- a tab icon is missing or changed (its fingerprint differs), or `public/img/`
+  holds anything but the three tab icons;
 - `vercel.json` differs from the reviewed settings;
 - the top of the repository holds anything but `README.md`, `public/`,
   `scripts/`, `vercel.json` and `.gitignore` (so no `api/` folder,
   `package.json` or other server or build code);
-- `public/` holds anything but the site’s pages, `site.css`, the logo and
-  `fonts/`.
+- `public/` holds anything but the site’s pages, `site.css`, the logo, `fonts/`
+  and `img/`.
 
 To run it yourself: `node scripts/check-site.mjs` (needs only Node). To change
-the fonts or `vercel.json` on purpose, update the check in the same commit.
+the fonts, the tab icons or `vercel.json` on purpose, update the check in the same commit.
